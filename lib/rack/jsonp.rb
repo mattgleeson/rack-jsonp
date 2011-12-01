@@ -1,4 +1,5 @@
 require 'rack'
+require 'multi_json'
 
 module Rack
   # A Rack middleware for providing JSON-P support.
@@ -11,6 +12,7 @@ module Rack
       @app = app
       @carriage_return = options[:carriage_return] || false
       @callback_param = options[:callback_param] || 'callback'
+      @return_errors = options[:return_errors] || false
     end
 
     # Proxies the request to the application, stripping out the JSON-P
@@ -29,19 +31,20 @@ module Rack
         param =~ /^(_|#{@callback_param})=/
       }.join("&")
 
-      status, headers, response = @app.call(env)
+      response = @app.call(env)
+      status, headers, body = response
 
-      if callback && headers['Content-Type'] =~ /json/i
-        response = pad(callback, response)
-        headers['Content-Length'] = response.first.bytesize.to_s
+      if callback && (headers['Content-Type'] =~ /json/i or return_error?(response))
+        body = pad(callback, response)
+        headers['Content-Length'] = body.first.bytesize.to_s
         headers['Content-Type'] = 'application/javascript'
       elsif @carriage_return && headers['Content-Type'] =~ /json/i
         # add a \n after the response if this is a json (not JSONP) response
-        response = carriage_return(response)
-        headers['Content-Length'] = response.first.bytesize.to_s
+        body = carriage_return(response)
+        headers['Content-Length'] = body.first.bytesize.to_s
       end
 
-      [status, headers, response]
+      [status, headers, body]
     end
 
     # Pads the response with the appropriate callback format according to the
@@ -52,14 +55,21 @@ module Rack
     # since JSON is returned as a full string.
     #
     def pad(callback, response, body = "")
-      response.each{ |s| body << s.to_s }
-      close(response)
-      ["#{callback}(#{body})"]
+      response[2].each{ |s| body << s.to_s }
+      close(response[2])
+      if return_error?(response)
+        error = MultiJson.encode({ :statusCode => response[0],
+                                   :headers => response[1],
+                                   :body => response[2] })
+        ["#{callback}(null, #{error})"]
+      else
+        ["#{callback}(#{body})"]
+      end
     end
 
     def carriage_return(response, body = "")
-      response.each{ |s| body << s.to_s }
-      close(response)
+      response[2].each{ |s| body << s.to_s }
+      close(response[2])
       ["#{body}\n"]
     end
 
@@ -68,6 +78,10 @@ module Rack
     # thread failures with newer Rack.
     def close(io)
       io.close if io.respond_to?(:close)
+    end
+
+    def return_error?(response)
+      @return_errors && response[0] >= 400
     end
   end
 

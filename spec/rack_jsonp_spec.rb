@@ -163,4 +163,37 @@ describe Rack::JSONP do
     body = Rack::JSONP.new(app).call(request).last
     body.join.should == '{"bar":"foo"}'
   end
+
+  describe "when the server would return an error reponse" do
+    let(:callback) {'foo'}
+    let(:test_body) { "Not Authorized" }
+    let(:app) { lambda { |env| [401, {'Content-Type' => 'text/plain'}, [test_body]] } }
+    let(:request) { Rack::MockRequest.env_for("/", :params => "foo=bar&callback=#{callback}") }
+
+    describe "and return_errors is enabled" do
+      let(:response) { Rack::JSONP.new(app, :return_errors=>true).call(request) }
+      let(:body) { response.last.join }
+      let(:error_json) { body =~ /^#{callback}\(\S+, (.*)\)$/ && $1 }
+
+      it "should callback with null and error param" do
+        body.should == "#{callback}(null, #{error_json})"
+      end
+
+      describe "and error param contents" do
+        let(:error) { MultiJson.decode(error_json) }
+
+        it "should have statusCode" do
+          error["statusCode"].should == 401
+        end
+
+        it "should have headers" do
+          error["headers"].should == {'Content-Type' => 'text/plain'}
+        end
+
+        it "should have body" do
+          error["body"].should == [test_body]
+        end
+      end
+    end
+  end
 end

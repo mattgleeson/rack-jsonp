@@ -14,6 +14,7 @@ Gem::Specification.new do |s|
   s.date = Time.now.strftime("%Y-%m-%d")
 
   s.add_dependency('rack')
+  s.add_dependency('multi_json')
   s.add_development_dependency('rake', '~> 0.8')
   s.add_development_dependency('rspec', '~> 1.3')
 
