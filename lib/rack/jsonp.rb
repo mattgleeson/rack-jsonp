@@ -60,7 +60,7 @@ module Rack
       if return_error?(response)
         error = MultiJson.encode({ :statusCode => response[0],
                                    :headers => response[1],
-                                   :body => response[2] })
+                                   :body => body })
         ["#{callback}(null, #{error})"]
       else
         ["#{callback}(#{body})"]

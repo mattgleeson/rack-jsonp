@@ -191,7 +191,7 @@ describe Rack::JSONP do
         end
 
         it "should have body" do
-          error["body"].should == [test_body]
+          error["body"].should == test_body
         end
       end
     end
