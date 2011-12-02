@@ -38,6 +38,9 @@ module Rack
         body = pad(callback, response)
         headers['Content-Length'] = body.first.bytesize.to_s
         headers['Content-Type'] = 'application/javascript'
+        if return_error?(response)
+          status = 200 # error is tunneled through the JSONP call
+        end
       elsif @carriage_return && headers['Content-Type'] =~ /json/i
         # add a \n after the response if this is a json (not JSONP) response
         body = carriage_return(response)

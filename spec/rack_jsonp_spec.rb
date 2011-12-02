@@ -175,6 +175,10 @@ describe Rack::JSONP do
       let(:body) { response.last.join }
       let(:error_json) { body =~ /^#{callback}\(\S+, (.*)\)$/ && $1 }
 
+      it "should always return a 200" do
+        response[0].should == 200
+      end
+
       it "should callback with null and error param" do
         body.should == "#{callback}(null, #{error_json})"
       end
